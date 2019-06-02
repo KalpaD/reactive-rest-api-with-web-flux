@@ -3,7 +3,7 @@ package org.kds.reactive;
 import org.junit.Test;
 import reactor.core.publisher.Flux;
 
-public class FluxTest {
+public class FluxBasicTest {
 
     @Test
     public void testFlux() {
@@ -72,5 +72,5 @@ public class FluxTest {
                  System.err::println, // error consumer
                  () -> System.out.println("CompleteEventOccurred")); // complete consumer
     }
-    
+
 }

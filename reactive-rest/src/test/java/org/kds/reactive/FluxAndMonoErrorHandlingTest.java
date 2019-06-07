@@ -1,0 +1,63 @@
+package org.kds.reactive;
+
+import lombok.extern.slf4j.Slf4j;
+import org.junit.Test;
+import org.kds.reactive.exception.CustomException;
+import reactor.core.publisher.Flux;
+import reactor.test.StepVerifier;
+
+@Slf4j
+public class FluxAndMonoErrorHandlingTest {
+
+    @Test
+    public void fluxErrorHandlerTest() {
+        Flux<String> fluxWithError = Flux.just("A", "B", "C")
+                .concatWith(Flux.error(new RuntimeException("Exception occurred")))
+                .concatWith(Flux.just("D"))
+                // this is important
+                // errors are also considered as events
+                .onErrorResume((e) -> {
+                    log.error("Error occurred {}", e);
+                    return Flux.just("default");
+                });
+
+
+        StepVerifier.create(fluxWithError.log())
+                .expectSubscription()
+                .expectNext("A", "B", "C")
+                //.expectError(RuntimeException.class)
+                //.verify();
+                // the default value coming from onErrorResume block
+                .expectNext("default")
+                .verifyComplete();
+    }
+
+    @Test
+    public void fluxErrorHandlerWithOnErrorReturn() {
+        Flux<String> fluxWithError = Flux.just("A", "B", "C")
+                .concatWith(Flux.error(new RuntimeException("Exception occurred")))
+                // on error this block comes in to picture and return a fallback value.
+                .onErrorReturn("fallback");
+
+
+        StepVerifier.create(fluxWithError.log())
+                .expectSubscription()
+                .expectNext("A", "B", "C")
+                .expectNext("fallback")
+                .verifyComplete();
+    }
+
+    @Test
+    public void fluxExceptionTranslationWithOnErrorMap() {
+        Flux<String> fluxWithError = Flux.just("A", "B", "C")
+                .concatWith(Flux.error(new RuntimeException("Exception occurred")))
+                .concatWith(Flux.just("D"))
+                .onErrorMap((e) -> new CustomException("Translated exception"));
+
+        StepVerifier.create(fluxWithError.log())
+                .expectSubscription()
+                .expectNext("A", "B", "C")
+                .expectError(CustomException.class)
+                .verify();
+    }
+}

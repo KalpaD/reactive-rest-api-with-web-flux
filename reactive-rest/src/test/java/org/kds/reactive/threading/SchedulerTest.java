@@ -57,4 +57,37 @@ public class SchedulerTest {
 
         countDownLatch.await();
     }
+
+    /**
+     * subscribeOn() always affects the context of the source emission.
+     * However, it does not affect the behavior of subsequent calls to publishOn.
+     *
+     * result
+     * map op 1 thread name :parallel-scheduler-1
+     * map op 2 thread name :parallel-scheduler-1
+     */
+    @Test
+    public void testSubscribeOn() throws InterruptedException {
+        countDownLatch = new CountDownLatch(1);
+
+        Scheduler scheduler = Schedulers.newParallel("parallel-scheduler", 4);
+
+        final Flux<String> flux = Flux.just(1)
+                .map(i -> {
+                    LOG.info("map op 1 thread name :" + Thread.currentThread().getName());
+                    return 10 + i;
+                })
+                .subscribeOn(scheduler)
+                .map(i -> {
+                    LOG.info("map op 2 thread name :" + Thread.currentThread().getName());
+                    return "value = " + i;
+                });
+
+        new Thread(() -> flux.subscribe( e -> {
+            countDownLatch.countDown();
+            System.out.println(e);
+        }), "Runner Thread").start();
+
+        countDownLatch.await();
+    }
 }

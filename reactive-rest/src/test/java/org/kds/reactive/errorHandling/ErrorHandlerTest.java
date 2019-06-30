@@ -12,7 +12,6 @@ import reactor.test.StepVerifier;
  */
 public class ErrorHandlerTest {
 
-
     /**
      * When the emitted event contains B then this flux throws an error event
      * in that case flux returns static value C.
@@ -36,7 +35,6 @@ public class ErrorHandlerTest {
                 .expectNext("A", "C")
                 .verifyComplete();
     }
-
 
     @Test
     public void testCatchAndExecuteAlternativePath() {
@@ -66,5 +64,40 @@ public class ErrorHandlerTest {
         }
     }
 
+    /**
+     * This method translate the runtime exception to custom exception
+     *
+     * org.kds.reactive.errorHandling.CustomException: Error detected
+     * at org.kds.reactive.errorHandling.ErrorHandlerTest.lambda$testCatchAndRethrow$3(ErrorHandlerTest.java:77)
+     * .
+     * .
+     * .
+     * at com.intellij.rt.execution.junit.JUnitStarter.main(JUnitStarter.java:70)
+     * Caused by: java.lang.RuntimeException: ERROR
+     *  at org.kds.reactive.errorHandling.ErrorHandlerTest.lambda$testCatchAndRethrow$2(ErrorHandlerTest.java:72)
+     *  at reactor.core.publisher.FluxMapFuseable$MapFuseableSubscriber.onNext(FluxMapFuseable.java:107)
+     * 	... 37 common frames omitted
+     */
+    @Test
+    public void testCatchAndRethrow() {
+        Flux<String> flux = Flux.just("A", "B")
+                .map(a -> {
+                    if (a.equals("B")) {
+                        throw new RuntimeException("ERROR");
+                    }
+                    return a;
+                })
+                // mapping the original to custom one
+                .onErrorMap(original -> new CustomException("Error detected", original))
+                // just to see what is being emitted
+                .log();
+
+        StepVerifier.create(flux)
+                .expectSubscription()
+                .expectNext("A")
+                // expect the Custom exception
+                .expectError(CustomException.class)
+                .verify();
+    }
 
 }

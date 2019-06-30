@@ -2,6 +2,7 @@ package org.kds.reactive.errorHandling;
 
 import org.junit.Test;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 /**
@@ -34,6 +35,35 @@ public class ErrorHandlerTest {
                 // expect the fallback value
                 .expectNext("A", "C")
                 .verifyComplete();
+    }
+
+
+    @Test
+    public void testCatchAndExecuteAlternativePath() {
+        Flux<String> flux = Flux.just("A", "B")
+                .map(a -> {
+                    if (a.equals("B")) {
+                        throw new RuntimeException("ERROR");
+                    }
+                    return a;
+                })
+                .onErrorResume(ErrorHandlerTest::fallbackMethod)
+                // just to see what is being emitted
+                .log();
+
+        StepVerifier.create(flux)
+                .expectSubscription()
+                // expect the fallback value
+                .expectNext("A", "RUNTIME_EX")
+                .verifyComplete();
+    }
+
+    private static Mono<String> fallbackMethod(Throwable error) {
+        if (error instanceof RuntimeException) {
+            return Mono.just("RUNTIME_EX");
+        } else {
+            return Mono.just("NOT_RUNTIME_EX");
+        }
     }
 
 

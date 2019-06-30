@@ -6,7 +6,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.SignalType;
 import reactor.test.StepVerifier;
+
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Errors are first class citizens in reactive world
@@ -138,6 +142,42 @@ public class ErrorHandlerTest {
                 .expectNext("A")
                 // the error still propagates
                 .expectError(RuntimeException.class)
+                .verify();
+    }
+
+    /**
+     * When SignalType Cancel emitted the doFinally() block get executed
+     * [parallel-1] INFO org.kds.reactive.errorHandling.ErrorHandlerTest - event number 1 emitted
+     * [parallel-2] INFO org.kds.reactive.errorHandling.ErrorHandlerTest - event number 2 emitted
+     * [parallel-3] INFO org.kds.reactive.errorHandling.ErrorHandlerTest - event number 3 emitted
+     * [parallel-3] INFO reactor.Flux.Array.1 - | cancel()
+     * [parallel-3] INFO org.kds.reactive.errorHandling.ErrorHandlerTest - Signal Type :CANCEL
+     * [parallel-3] INFO org.kds.reactive.errorHandling.ErrorHandlerTest - Final number of events emitted 3
+     */
+    @Test
+    public void testUsingFinallyBlock() {
+        AtomicInteger atomicInteger = new AtomicInteger(0);
+
+        Flux<String> flux = Flux.just("A", "B", "C", "D")
+                .log()
+                .delayElements(Duration.ofMillis(1000))
+                .doOnNext(element -> {
+                    int i = atomicInteger.incrementAndGet();
+                    LOG.info("event number {} emitted ", i);
+                })
+                .doFinally(type -> {
+                    // doFinally consumes a SignalType for the type of termination
+                    LOG.info("Signal Type :" + type.name());
+                    if (type == SignalType.CANCEL) {
+                        LOG.info("Final number of events emitted {}", atomicInteger.get());
+                    }
+                    // we take only three events, then a cancel signal should be emitted.
+                }).take(3);
+
+        StepVerifier.create(flux)
+                .expectSubscription()
+                .expectNext("A", "B", "C")
+                .thenCancel()
                 .verify();
     }
 }

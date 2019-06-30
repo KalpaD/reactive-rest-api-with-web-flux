@@ -1,6 +1,9 @@
 package org.kds.reactive.errorHandling;
 
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -10,7 +13,10 @@ import reactor.test.StepVerifier;
  * Any error in a reactive sequence is a terminal event.
  * Even if an error-handling operator is used, it does not allow the original sequence to continue.
  */
+@Slf4j
 public class ErrorHandlerTest {
+
+     private Logger LOG = LoggerFactory.getLogger(ErrorHandlerTest.class);
 
     /**
      * When the emitted event contains B then this flux throws an error event
@@ -100,4 +106,38 @@ public class ErrorHandlerTest {
                 .verify();
     }
 
+    /**
+     * This demonstrates the scenario where we do a something on side about the error
+     * bu we do not modify the error.
+     *
+     * [main] INFO reactor.Flux.PeekFuseable.1 - | onNext(A)
+     *      [main] ERROR org.kds.reactive.errorHandling.ErrorHandlerTest - Something went wrong
+     * [main] ERROR reactor.Flux.PeekFuseable.1 - | onError(java.lang.RuntimeException: ERROR)
+     * [main] ERROR reactor.Flux.PeekFuseable.1 -
+     *      java.lang.RuntimeException: ERROR
+     * 	at org.kds.reactive.errorHandling.ErrorHandlerTest.lambda$testCatchAndReactOnSide$4(ErrorHandlerTest.java:118)
+     *
+     */
+    @Test
+    public void testCatchAndReactOnSide() {
+        Flux<String> flux = Flux.just("A", "B")
+                .map(a -> {
+                    if (a.equals("B")) {
+                        throw new RuntimeException("ERROR");
+                    }
+                    return a;
+                })
+                .doOnError(error -> {
+                    LOG.error("Something went wrong");
+                })
+                // just to see what is being emitted
+                .log();
+
+        StepVerifier.create(flux)
+                .expectSubscription()
+                .expectNext("A")
+                // the error still propagates
+                .expectError(RuntimeException.class)
+                .verify();
+    }
 }

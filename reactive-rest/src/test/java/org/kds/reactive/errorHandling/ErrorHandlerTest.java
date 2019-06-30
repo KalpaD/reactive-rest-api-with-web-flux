@@ -4,11 +4,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.SignalType;
 import reactor.test.StepVerifier;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -179,5 +181,36 @@ public class ErrorHandlerTest {
                 .expectNext("A", "B", "C")
                 .thenCancel()
                 .verify();
+    }
+
+    @Test
+    public void testHandlingCheckedExceptions() {
+        Flux<String> flux = Flux.just("A", "B", "C")
+                .log()
+                .map(element -> {
+                    try {
+                        return generateCheckedException(element);
+                    } catch (IOException e) {
+                        // convert the checked exception to runtime (unchecked exception)
+                       throw Exceptions.propagate(e);
+                    }
+                });
+
+        flux.subscribe(
+                event -> LOG.info("event received {}", event),
+                error -> {
+                    if (Exceptions.unwrap(error) instanceof IOException) {
+                        LOG.error("Something went wrong during I/O operation");
+                    } else {
+                        LOG.error("Something went wrong");
+                    }
+                });
+    }
+
+    private static String generateCheckedException(String input) throws IOException {
+        if (input.equals("C")) {
+            throw new IOException("Failed IO");
+        }
+        return input;
     }
 }

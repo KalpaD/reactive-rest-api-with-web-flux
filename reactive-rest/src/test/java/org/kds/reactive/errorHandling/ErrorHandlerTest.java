@@ -28,6 +28,25 @@ public class ErrorHandlerTest {
      * When the emitted event contains B then this flux throws an error event
      * in that case flux returns static value C.
      */
+
+    @Test
+    public void testError() {
+        Flux<String> flux = Flux.just("A", "B")
+                .map(a -> {
+                    if (a.equals("B")) {
+                        throw new RuntimeException("ERROR");
+                    }
+                    return a;
+                })
+                .log();
+
+        StepVerifier.create(flux)
+                .expectSubscription()
+                .expectNext("A")
+                .expectError()
+                .verify();
+    }
+
     @Test
     public void testCatchAndReturnStaticValue() {
         Flux<String> flux = Flux.just("A", "B")

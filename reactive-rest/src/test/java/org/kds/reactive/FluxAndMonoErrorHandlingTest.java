@@ -1,13 +1,16 @@
 package org.kds.reactive;
 
-import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.kds.reactive.exception.CustomException;
+import org.kds.reactive.threading.SchedulerTest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
-@Slf4j
 public class FluxAndMonoErrorHandlingTest {
+
+    private static Logger LOG = LoggerFactory.getLogger(FluxAndMonoErrorHandlingTest.class);
 
     @Test
     public void fluxErrorHandlerTest() {
@@ -17,7 +20,7 @@ public class FluxAndMonoErrorHandlingTest {
                 // this is important
                 // errors are also considered as events
                 .onErrorResume((e) -> {
-                    log.error("Error occurred {}", e);
+                    LOG.error("Error occurred {}", e);
                     return Flux.just("default");
                 });
 

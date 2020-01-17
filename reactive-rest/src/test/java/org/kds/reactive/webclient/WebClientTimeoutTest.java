@@ -25,6 +25,7 @@ import reactor.test.StepVerifier;
 import java.net.URI;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockserver.integration.ClientAndServer.startClientAndServer;
@@ -108,8 +109,9 @@ public class WebClientTimeoutTest {
         Mono<JsonNode> result = doGetWithDefaultConnectAndReadTimeOut(uri, 3000);
         StepVerifier.create(result)
                 .expectSubscription()
-                .assertNext(jsonNode -> assertEquals("ok", jsonNode.get("result").textValue()))
-                .verifyComplete();
+                .expectError(TimeoutException.class)
+                //.assertNext(jsonNode -> assertEquals("ok", jsonNode.get("result").textValue()))
+                .verify();
     }
 
     @After

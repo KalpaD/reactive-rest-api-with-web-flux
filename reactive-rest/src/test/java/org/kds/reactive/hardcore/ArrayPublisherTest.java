@@ -10,6 +10,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
 
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+
 public class ArrayPublisherTest {
 
     @Test
@@ -52,6 +54,58 @@ public class ArrayPublisherTest {
                 "onNext(4)",
                 "onComplete()"
         );
+    }
+
+    @Test
+    public void mustSupportBackPressureControl() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        ArrayList<Long> collected = new ArrayList<>();
+        long toRequest = 5L;
+        Long[] array = generate(toRequest);
+        ArrayPublisher<Long>  arrayPublisher = new ArrayPublisher<>(generate(toRequest));
+        Subscription[] subscriptions = new Subscription[1];
+
+        arrayPublisher.subscribe(new Subscriber<Long>() {
+            @Override
+            public void onSubscribe(Subscription s) {
+                subscriptions[0] = s;
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                collected.add(aLong);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+
+            }
+
+            @Override
+            public void onComplete() {
+                latch.countDown();
+            }
+        });
+
+        assertThat(collected).isEmpty();
+
+        subscriptions[0].request(1);
+        assertThat(collected).containsExactly(0L);
+
+        subscriptions[0].request(1);
+        assertThat(collected).containsExactly(0L, 1L);
+
+
+        subscriptions[0].request(2);
+        assertThat(collected).containsExactly(0L, 1L, 2L, 3L);
+
+        subscriptions[0].request(20);
+        assertThat(collected).containsExactly(0L, 1L, 2L, 3L, 4L);
+
+        assertThat(latch.await(1000, TimeUnit.MILLISECONDS)).isTrue();
+
+        assertThat(collected).containsExactly(array);
+
     }
 
     static Long[] generate(long num) {

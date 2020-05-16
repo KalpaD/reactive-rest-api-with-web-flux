@@ -1,6 +1,5 @@
 package org.kds.reactive.errorHandling;
 
-import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +18,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Any error in a reactive sequence is a terminal event.
  * Even if an error-handling operator is used, it does not allow the original sequence to continue.
  */
-@Slf4j
 public class ErrorHandlerTest {
 
      private Logger LOG = LoggerFactory.getLogger(ErrorHandlerTest.class);

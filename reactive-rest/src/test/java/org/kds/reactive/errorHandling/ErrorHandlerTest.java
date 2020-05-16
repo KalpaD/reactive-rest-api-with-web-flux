@@ -129,18 +129,75 @@ public class ErrorHandlerTest {
                 .verify();
     }
 
-    /**
-     * This demonstrates the scenario where we do a something on side about the error
-     * bu we do not modify the error.
-     *
-     * [main] INFO reactor.Flux.PeekFuseable.1 - | onNext(A)
-     *      [main] ERROR org.kds.reactive.errorHandling.ErrorHandlerTest - Something went wrong
-     * [main] ERROR reactor.Flux.PeekFuseable.1 - | onError(java.lang.RuntimeException: ERROR)
-     * [main] ERROR reactor.Flux.PeekFuseable.1 -
-     *      java.lang.RuntimeException: ERROR
-     * 	at org.kds.reactive.errorHandling.ErrorHandlerTest.lambda$testCatchAndReactOnSide$4(ErrorHandlerTest.java:118)
-     *
-     */
+
+    @Test
+    public void testCatchAndHandleHierarchicalLevel1Errors() {
+        String input = "A";
+
+        Mono<String> mono = ErrorHandlerTest.doDbOperation(input)
+                .flatMap(result -> Mono.just(result.toLowerCase()))
+                .zipWhen(ErrorHandlerTest::doAnotherOperation, (res1, res2) -> res1)
+                .onErrorMap(DbException.class, (err) -> new CustomException("DB error translated to application error", err))
+                .onErrorMap(OtherOperationException.class, (err) -> new CustomException("Other operation error translated to application error", err));
+
+        StepVerifier.create(mono)
+                .expectSubscription()
+                // expect the Custom exception
+                .expectErrorMessage("DB error translated to application error")
+                .verify();
+    }
+
+
+    @Test
+    public void testCatchAndHandleHierarchicalLevel2Errors() {
+        String input = "B";
+
+        Mono<String> mono = ErrorHandlerTest.doDbOperation(input)
+                .flatMap(result -> Mono.just(result.toLowerCase()))
+                .zipWhen(ErrorHandlerTest::doAnotherOperation, (res1, res2) -> res1)
+                .onErrorMap(DbException.class, (err) -> new CustomException("DB error translated to application error", err))
+                .onErrorMap(OtherOperationException.class, (err) -> new CustomException("Other operation error translated to application error", err));
+
+        StepVerifier.create(mono)
+                .expectSubscription()
+                // expect the Custom exception
+                .expectErrorMessage("Other operation error translated to application error")
+                .verify();
+    }
+
+    private static Mono<String> doDbOperation(String input) {
+        return Mono.just(input)
+                .map(a -> {
+                    if (input.equals("A")) {
+                        throw new DbException("DB operation failed");
+                    }
+                    return a;
+                });
+    }
+
+    private static Mono<String> doAnotherOperation(String input) {
+        return Mono.just(input).
+                map(a -> {
+                    if (input.equals("b")) {
+                        throw new OtherOperationException("Other operation failed");
+                    }
+                    return a;
+                });
+    }
+
+
+        /**
+         * This demonstrates the scenario where we do a something on side about the error
+         * bu we do not modify the error.
+         *
+         * [main] INFO reactor.Flux.PeekFuseable.1 - | onNext(A)
+         *      [main] ERROR org.kds.reactive.errorHandling.ErrorHandlerTest - Something went wrong
+         * [main] ERROR reactor.Flux.PeekFuseable.1 - | onError(java.lang.RuntimeException: ERROR)
+         * [main] ERROR reactor.Flux.PeekFuseable.1 -
+         *      java.lang.RuntimeException: ERROR
+         * 	at org.kds.reactive.errorHandling.ErrorHandlerTest.lambda$testCatchAndReactOnSide$4(ErrorHandlerTest.java:118)
+         *
+         */
     @Test
     public void testCatchAndReactOnSide() {
         Flux<String> flux = Flux.just("A", "B")

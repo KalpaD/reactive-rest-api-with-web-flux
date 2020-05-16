@@ -25,6 +25,7 @@ public class ArrayPublisherTest {
             @Override
             public void onSubscribe(Subscription s) {
                 observedSignals.add("onSubscribe()");
+                s.request(5);
             }
 
             @Override
@@ -44,7 +45,7 @@ public class ArrayPublisherTest {
             }
         });
 
-        Assertions.assertThat(latch.await(1000, TimeUnit.MILLISECONDS)).isTrue();
+        latch.await();
 
         Assertions.assertThat(observedSignals).containsExactly(
                 "onSubscribe()",
@@ -109,7 +110,6 @@ public class ArrayPublisherTest {
 
     }
 
-
     @Test
     public void mustSendNPENormally() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
@@ -144,6 +144,42 @@ public class ArrayPublisherTest {
         latch.await(1000, TimeUnit.MILLISECONDS);
 
         assertThat(error.get()).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    public void shouldNotDieInStackOverflow() {
+        CountDownLatch latch = new CountDownLatch(1);
+        ArrayList<Long> collected = new ArrayList<>();
+        long toRequest = 1000L;
+        Long[] array = generate(toRequest);
+        ArrayPublisher<Long>  arrayPublisher = new ArrayPublisher<>(generate(toRequest));
+
+        arrayPublisher.subscribe(new Subscriber<Long>() {
+            Subscription subscription;
+            @Override
+            public void onSubscribe(Subscription subscription) {
+                this.subscription = subscription;
+                subscription.request(1);
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                collected.add(aLong);
+                subscription.request(1);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+
+            }
+
+            @Override
+            public void onComplete() {
+
+            }
+        });
+
+
     }
 
     static Long[] generate(long num) {

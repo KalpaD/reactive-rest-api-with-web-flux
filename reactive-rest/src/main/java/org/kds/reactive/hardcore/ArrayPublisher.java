@@ -16,9 +16,19 @@ public class ArrayPublisher<T> implements Publisher<T> {
     public void subscribe(Subscriber<? super T> subscriber) {
         subscriber.onSubscribe(new Subscription() {
             int index;
+            long requested;
             @Override
             public void request(long n) {
-                for (int i = 0; i < n && index < array.length; i++, index++) {
+                long initialRequested = requested;
+                requested += n;
+
+                if (initialRequested != 0) {
+                    return;
+                }
+
+                int sent = 0;
+
+                for (; sent < requested && index < array.length; sent++, index++) {
                     T element  = array[index];
 
                     if (element == null) {

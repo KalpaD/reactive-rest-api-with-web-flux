@@ -8,6 +8,7 @@ import org.reactivestreams.Subscription;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.LongStream;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
@@ -106,6 +107,43 @@ public class ArrayPublisherTest {
 
         assertThat(collected).containsExactly(array);
 
+    }
+
+
+    @Test
+    public void mustSendNPENormally() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        ArrayList<Long> collected = new ArrayList<>();
+        Long[] array = new Long[] {null};
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        ArrayPublisher<Long>  arrayPublisher = new ArrayPublisher<>(array);
+
+        arrayPublisher.subscribe(new Subscriber<Long>() {
+            @Override
+            public void onSubscribe(Subscription s) {
+                s.request(4);
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                error.set(t);
+                latch.countDown();
+            }
+
+            @Override
+            public void onComplete() {
+                latch.countDown();
+            }
+        });
+
+        latch.await(1000, TimeUnit.MILLISECONDS);
+
+        assertThat(error.get()).isInstanceOf(NullPointerException.class);
     }
 
     static Long[] generate(long num) {

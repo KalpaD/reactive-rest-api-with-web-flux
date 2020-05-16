@@ -19,6 +19,12 @@ public class ArrayPublisher<T> implements Publisher<T> {
             @Override
             public void request(long n) {
                 for (int i = 0; i < n && index < array.length; i++, index++) {
+                    T element  = array[index];
+
+                    if (element == null) {
+                        subscriber.onError(new NullPointerException());
+                        return;
+                    }
                     subscriber.onNext(array[index]);
                 }
 

@@ -8,6 +8,7 @@ import org.reactivestreams.Subscription;
 
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.LongStream;
@@ -149,7 +150,7 @@ public class ArrayPublisherTest {
     }
 
     @Test
-    public void shouldNotDieInStackOverflow() {
+    public void shouldNotDieInStackOverflow() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         ArrayList<Long> collected = new ArrayList<>();
         long toRequest = 1000L;
@@ -181,6 +182,47 @@ public class ArrayPublisherTest {
             }
         });
 
+        latch.await(1000, TimeUnit.MILLISECONDS);
+    }
+
+    @Test
+    public void multiThreadingTest() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        ArrayList<Long> collected = new ArrayList<>();
+        final int toRequest = 100;
+        Long[] array = generate(toRequest);
+        ArrayPublisher<Long>  arrayPublisher = new ArrayPublisher<>(generate(toRequest));
+
+        arrayPublisher.subscribe(new Subscriber<Long>() {
+            private Subscription subscription;
+            @Override
+            public void onSubscribe(Subscription s) {
+                this.subscription = s;
+                for (int i = 0; i < toRequest; i++) {
+                    ForkJoinPool.commonPool()
+                            .execute(() -> subscription.request(1));
+                }
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                collected.add(aLong);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+
+            }
+
+            @Override
+            public void onComplete() {
+                latch.countDown();
+            }
+        });
+
+        latch.await(2, TimeUnit.SECONDS);
+
+        assertThat(collected).hasSize(100).containsExactly(array);
 
     }
 

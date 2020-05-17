@@ -226,6 +226,50 @@ public class ArrayPublisherTest {
 
     }
 
+
+    @Test
+    public void testMapOperation() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        final int toRequest = 5;
+        Long[] array = generate(toRequest);
+        ArrayList<Long> collected = new ArrayList<>();
+
+        new MapPublisher<>(
+                new MapPublisher<>(new ArrayPublisher<>(array), Object::toString)
+                , Long::parseLong)
+            .subscribe(new Subscriber<Long>() {
+                @Override
+                public void onSubscribe(Subscription s) {
+                    s.request(5);
+                }
+
+                @Override
+                public void onNext(Long aLong) {
+                    collected.add(aLong);
+                }
+
+                @Override
+                public void onError(Throwable t) {
+
+                }
+
+                @Override
+                public void onComplete() {
+                    latch.countDown();
+                }
+        });
+        latch.await(2, TimeUnit.SECONDS);
+        assertThat(collected).hasSize(5).containsExactly(array);
+    }
+
+
+    static String[] generateStrings(long num) {
+        return (String[]) LongStream.range(0, num >= Integer.MAX_VALUE ? 1000000 : num)
+                .mapToObj(String::valueOf)
+                .toArray();
+    }
+
+
     static Long[] generate(long num) {
         return LongStream.range(0, num >= Integer.MAX_VALUE ? 1000000 : num)
                 .boxed()

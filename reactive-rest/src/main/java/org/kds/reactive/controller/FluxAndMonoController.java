@@ -22,10 +22,12 @@ import java.time.Duration;
 public class FluxAndMonoController {
 
     @PostMapping("/format")
-    public Mono<FormattedNameResponse> format(@Valid @RequestBody Mono<FormatNameRequest> request) {
+    public Mono<ResponseEntity<FormattedNameResponse>> format(@Valid @RequestBody Mono<FormatNameRequest> request) {
         return request
-                .map(FormattedNameResponseMapper::fromFormatNameRequest)
-                .onErrorResume(WebExchangeBindException.class, ex -> Mono.just(FormattedNameResponseMapper.fromWebExchangeBindException(ex)));
+                .map(res -> ResponseEntity.status(HttpStatus.OK).body(FormattedNameResponseMapper.fromFormatNameRequest(res)))
+                .onErrorResume(WebExchangeBindException.class,
+                        ex -> Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                        .body(FormattedNameResponseMapper.fromWebExchangeBindException(ex))));
     }
 
     @GetMapping("/flux")

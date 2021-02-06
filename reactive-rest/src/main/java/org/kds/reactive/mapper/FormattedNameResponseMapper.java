@@ -10,12 +10,11 @@ import java.util.stream.Collectors;
 
 public class FormattedNameResponseMapper {
 
-    private FormattedNameResponseMapper(){
-
+    private FormattedNameResponseMapper() {
     }
 
     public static FormattedNameResponse fromFormatNameRequest(FormatNameRequest req) {
-        String s = req.getTitle() + " " + req.getFirstName() + " " + req.getMiddleName() + " " + req.getLastName();
+        String s = String.format("%s %s %s %s", req.getTitle(), req.getFirstName(), req.getMiddleName(), req.getLastName());
         FormattedNameResponse res = new FormattedNameResponse();
         res.setFormattedName(s);
         return res;
@@ -24,11 +23,8 @@ public class FormattedNameResponseMapper {
     public static FormattedNameResponse fromWebExchangeBindException(WebExchangeBindException ex) {
         FormattedNameResponse res = new FormattedNameResponse();
         List<Error> errors = ex.getFieldErrors().stream()
-                .map(fieldError -> {
-                    String code = fieldError.getField();
-                    String message = fieldError.getDefaultMessage();
-                    return new Error(code, message);
-                }).collect(Collectors.toList());
+                .map(fieldError -> new Error(fieldError.getField(), fieldError.getDefaultMessage()))
+                .collect(Collectors.toList());
         res.setErrors(errors);
         return res;
     }
